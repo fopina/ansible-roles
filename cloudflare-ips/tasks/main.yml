@@ -1,0 +1,102 @@
+- name: persist iptables
+  apt:
+    name: iptables-persistent
+    state: present
+
+- name: download CF IPs
+  uri:
+    url: https://www.cloudflare.com/ips-v4
+    return_content: yes
+  register: cf_ips
+  delegate_to: localhost
+  become: no
+
+- name: flush DOCKER-USER
+  iptables:
+    chain: DOCKER-USER
+    flush: true
+
+- iptables:
+    chain: DOCKER-USER
+    ctstate: ESTABLISHED,RELATED
+    jump: ACCEPT
+
+- name: add CF IPs rules
+  iptables:
+    chain: DOCKER-USER
+    jump: ACCEPT
+    protocol: tcp
+    destination_port: "{{ item[0] }}"
+    source: "{{ item[1] }}"
+  with_nested:
+    - "{{ cf_ports }}"
+    - "{{ cf_ips.content.splitlines() }}"
+
+- name: add extra input (if defined)
+  iptables:
+    chain: DOCKER-USER
+    jump: ACCEPT
+    source: "{{ item.ip|default(omit) }}"
+    protocol: tcp
+    destination_port: "{{ item.port|default(omit) }}"
+  with_items: "{{ iptables_extra_input }}"
+  when: iptables_extra_input is defined
+
+- name: add extra udp input (if defined)
+  iptables:
+    chain: DOCKER-USER
+    jump: ACCEPT
+    source: "{{ item.ip }}"
+    protocol: udp
+    destination_port: "{{ item.port|default(omit) }}"
+  with_items: "{{ iptables_extra_udp_input }}"
+  when: iptables_extra_udp_input is defined
+
+- name: accept from existing docker devices
+  iptables:
+    chain: DOCKER-USER
+    in_interface: "{{ item }}"
+    jump: ACCEPT
+  loop:
+    - docker_gwbridge
+    - docker0
+  when: cf_drop_rest
+
+- name: accept from existing docker devices (on these ports)
+  iptables:
+    chain: DOCKER-USER
+    in_interface: "{{ item[1] }}"
+    protocol: tcp
+    destination_port: "{{ item[0] }}"
+    jump: ACCEPT
+  with_nested:
+    - "{{ cf_ports }}"
+    - [ "docker_gwbridge", "docker0" ]
+  when: not cf_drop_rest
+
+- name: drop everything else
+  iptables:
+    chain: DOCKER-USER
+    jump: DROP
+  when: cf_drop_rest
+
+- name: drop these ports
+  iptables:
+    chain: DOCKER-USER
+    jump: DROP
+    protocol: tcp
+    destination_port: "{{ item }}"
+  loop: "{{ cf_ports }}"
+  when: not cf_drop_rest
+
+- name: Saving iptables rules v4
+  shell: iptables-save > /etc/iptables/rules.v4
+
+- name: Saving iptables rules v6
+  shell: ip6tables-save > /etc/iptables/rules.v6
+
+- name: Enable and start iptables service
+  systemd:
+    state: started
+    enabled: yes
+    name: netfilter-persistent
