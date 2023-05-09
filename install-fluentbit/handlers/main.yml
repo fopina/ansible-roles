@@ -1,0 +1,6 @@
+---
+- name: Restart Fluentbit
+  service:
+    name: fluent-bit
+    enabled: true
+    state: restarted

@@ -1,0 +1,22 @@
+- name: add fluentbit apt key
+  apt_key:
+    url: https://packages.fluentbit.io/fluentbit.key
+    state: present
+
+- apt_repository:
+    repo: deb https://packages.fluentbit.io/{{ ansible_lsb.id | lower }}/{{ ansible_lsb.codename }} {{ ansible_lsb.codename }} main
+    state: present
+    filename: fluentbit
+  when: (ansible_lsb.id, ansible_lsb.codename) in (('Debian', 'buster'), ('Debian', 'bullseye'), ('Raspbian', 'buster'), ('Ubuntu', 'bionic'), ('Ubuntu', 'focal'))
+  register: repo_installed
+
+- fail:
+    msg: no fluentbit repository repo_installed
+  when:
+    - repo_installed is skipped
+
+- name: Install fluent-bit
+  apt:
+    name: fluent-bit
+    force_apt_get: yes
+  notify: Restart Fluentbit
