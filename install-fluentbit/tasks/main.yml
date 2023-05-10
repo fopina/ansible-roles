@@ -1,16 +1,9 @@
 - include_tasks: debian.yml
-  register: repo_installed
   when:
     - ansible_lsb
     - (ansible_lsb.id, ansible_lsb.codename) in (('Debian', 'buster'), ('Debian', 'bullseye'), ('Raspbian', 'buster'), ('Ubuntu', 'bionic'), ('Ubuntu', 'focal'))
 
 - include_tasks: oraclelinux.yml
-  register: repo_installed
   when:
     - ansible_distribution == "OracleLinux"
     - ansible_distribution_major_version == "8"
-
-- fail:
-    msg: no fluentbit repository repo_installed
-  when:
-    - repo_installed is skipped
