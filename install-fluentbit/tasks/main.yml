@@ -1,7 +1,7 @@
 - include_tasks: debian.yml
   when:
     - ansible_lsb
-    - (ansible_lsb.id, ansible_lsb.codename) in (('Debian', 'buster'), ('Debian', 'bullseye'), ('Debian', 'bookworm'), ('Raspbian', 'buster'), ('Ubuntu', 'bionic'), ('Ubuntu', 'focal'))
+    - (ansible_lsb.id, ansible_lsb.codename) in (('Debian', 'buster'), ('Debian', 'bullseye'), ('Debian', 'bookworm'), ('Raspbian', 'buster'), ('Ubuntu', 'bionic'), ('Ubuntu', 'focal'), ('Ubuntu', 'noble'))
 
 - include_tasks: oraclelinux.yml
   when:
